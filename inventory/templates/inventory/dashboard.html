@@ -54,6 +54,30 @@
   <button type="submit">Apply Filters</button>
 </form>
 
+<div class="panel" style="margin-bottom: 24px;">
+  <div class="panel-header">
+    <h2>Items</h2>
+  </div>
+  <div class="barcode-card-grid">
+    {% for item in items %}
+    <a class="barcode-card" href="{% url 'inventory:item_detail' item.id %}">
+      <div class="barcode-card-image">
+        {% if item.barcode_image %}
+        <img src="{{ item.barcode_image.url }}" alt="Barcode for {{ item.item_name }}">
+        {% else %}
+        <span class="barcode-card-noimg">No image</span>
+        {% endif %}
+      </div>
+      <div class="barcode-card-name">{{ item.item_name }}</div>
+      <div class="barcode-card-value mono">{{ item.barcode_value }}</div>
+      <span class="badge badge-{{ item.status_css }}">{{ item.get_status_display }}</span>
+    </a>
+    {% empty %}
+    <div class="empty-state">No items match these filters yet.</div>
+    {% endfor %}
+  </div>
+</div>
+
 <div class="layout-split">
   <div class="panel">
     <div class="panel-header">

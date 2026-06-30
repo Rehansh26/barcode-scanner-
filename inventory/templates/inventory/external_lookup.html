@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Barcode Lookup - {{ barcode_value }}{% endblock %}
+{% block content %}
+<div class="eyebrow">External Barcode Lookup</div>
+<h1>
+  {% if product_name %}{{ product_name }} - {% endif %}Barcode: {{ barcode_value }}
+</h1>
+
+<div class="lookup-card-wrap">
+  <div class="lookup-card">
+    <img src="{{ barcode_image_data_uri }}" alt="Barcode {{ barcode_value }}">
+  </div>
+</div>
+
+<div class="panel" style="margin-top: 24px;">
+  <div class="panel-header">
+    <h2>Search Results For Barcode: {{ barcode_value }}</h2>
+  </div>
+
+  {% if suggestions %}
+  <table>
+    <thead>
+      <tr>
+        <th>Nr</th>
+        <th>Barcode</th>
+        <th>Product Name</th>
+        <th>Measure</th>
+        <th>Source</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in suggestions %}
+      <tr>
+        <td>{{ forloop.counter }}</td>
+        <td class="mono">{{ barcode_value }}</td>
+        <td>{{ s.product_name }}{% if s.brand and s.brand != "—" %} ({{ s.brand }}){% endif %}</td>
+        <td>{{ s.quantity }}</td>
+        <td>Open Food Facts</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">No public database entry found for this code yet.</div>
+  {% endif %}
+</div>
+
+<div class="panel" style="margin-top: 24px;">
+  <div class="panel-header">
+    <h2>Add to your inventory</h2>
+  </div>
+  {% if existing_item %}
+  <p>This barcode is already tracked as <a href="{% url 'inventory:item_detail' existing_item.id %}">{{ existing_item.item_name }}</a>.</p>
+  {% else %}
+  <a class="btn" href="{% url 'inventory:generate_barcode' %}?barcode_value={{ barcode_value }}{% if product_name %}&item_name={{ product_name|urlencode }}{% endif %}">
+    + Add "{{ product_name|default:barcode_value }}" as a new item
+  </a>
+  {% endif %}
+</div>
+{% endblock %}

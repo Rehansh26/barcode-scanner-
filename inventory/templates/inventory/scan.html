@@ -33,7 +33,9 @@
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
 <script>
 (function () {
-  const codeReader = new ZXing.BrowserMultiFormatReader();
+  const hints = new Map();
+  hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+  const codeReader = new ZXing.BrowserMultiFormatReader(hints);
   let activeControls = null;
 
   const tabCamera = document.getElementById('tab-camera');
@@ -109,7 +111,24 @@
           uploadStatus.textContent = '';
           showResult(result.getText());
         }).catch(() => {
-          uploadStatus.textContent = 'No code found in that image. Try a clearer photo or crop tighter to the code.';
+          // Retry on an upscaled canvas - helps a lot with small/low-res barcode images.
+          const scale = Math.max(1, Math.min(4, 800 / img.naturalWidth));
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth * scale;
+          canvas.height = img.naturalHeight * scale;
+          const ctx = canvas.getContext('2d');
+          ctx.imageSmoothingEnabled = true;
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const upscaledImg = new Image();
+          upscaledImg.onload = function () {
+            codeReader.decodeFromImageElement(upscaledImg).then((result) => {
+              uploadStatus.textContent = '';
+              showResult(result.getText());
+            }).catch(() => {
+              uploadStatus.textContent = 'No code found in that image. Try a clearer photo or crop tighter to the code.';
+            });
+          };
+          upscaledImg.src = canvas.toDataURL();
         });
       };
       img.src = evt.target.result;
@@ -140,7 +159,7 @@ goBtn.addEventListener('click', () => {
             if (data.found) {
                 window.location.href = data.item.detail_url;
             } else {
-                window.location.href = "{% url 'inventory:generate_barcode' %}?barcode_value=" + encodeURIComponent(code);
+                window.location.href = "/scan/external/" + encodeURIComponent(code) + "/";
             }
         })
         .catch(() => {

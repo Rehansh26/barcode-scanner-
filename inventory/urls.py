@@ -10,6 +10,7 @@ urlpatterns = [
     path('generate/status/<str:task_id>/', views.task_status, name='task_status'),
     path('scan/', views.scan_page, name='scan_page'),
     path('scan/lookup/', views.scan_lookup, name='scan_lookup'),
+    path('scan/external/<str:code>/', views.external_lookup, name='external_lookup'),
     path('ai-insights/', views.ai_insights_list, name='ai_insights_list'),
     path('ai-insights/generate/', views.trigger_ai_insight, name='trigger_ai_insight'),
     path('ai-insights/status/<str:task_id>/', views.ai_task_status, name='ai_task_status'),

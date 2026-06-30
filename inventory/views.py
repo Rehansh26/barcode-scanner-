@@ -1,5 +1,10 @@
 import csv
 import uuid
+import io
+import base64
+import requests
+import barcode
+from barcode.writer import ImageWriter
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST
@@ -87,7 +92,10 @@ def generate_barcode(request):
         return JsonResponse({'errors': form.errors}, status=400)
 
     # Prefill barcode_value if arriving from the scan page with an unmatched code
-    form = ItemForm(initial={'barcode_value': request.GET.get('barcode_value', '')})
+    form = ItemForm(initial={
+        'barcode_value': request.GET.get('barcode_value', ''),
+        'item_name': request.GET.get('item_name', ''),
+    })
     context = {
         'form': form,
         'categories': Category.objects.all(),
@@ -145,6 +153,63 @@ def scan_lookup(request):
             'barcode_image_url': item.barcode_image.url if item.barcode_image else '',
         }
     })
+
+
+def _render_barcode_data_uri(code_value):
+    """Render an EAN13/Code128 barcode to a PNG and return it as a data: URI,
+    without saving anything to disk — used for display-only previews."""
+    buffer = io.BytesIO()
+    try:
+        symbology = 'ean13' if len(code_value) in (12, 13) and code_value.isdigit() else 'code128'
+        code_class = barcode.get_barcode_class(symbology)
+        code_class(code_value, writer=ImageWriter()).write(buffer)
+    except Exception:
+        buffer = io.BytesIO()
+        barcode.get_barcode_class('code128')(code_value, writer=ImageWriter()).write(buffer)
+    encoded = base64.b64encode(buffer.getvalue()).decode('ascii')
+    return f"data:image/png;base64,{encoded}"
+
+
+def external_lookup(request, code):
+    """Look up a barcode that isn't in our own inventory against the free
+    Open Food Facts public database, and show results in a card + table
+    similar to sites like 'Database of Barcodes'."""
+    code = code.strip()
+    suggestions = []
+    product_name = ''
+    found_external = False
+
+    try:
+        resp = requests.get(
+            f'https://world.openfoodfacts.org/api/v2/product/{code}.json',
+            params={'fields': 'product_name,brands,quantity,product_name_en'},
+            timeout=5,
+        )
+        if resp.ok:
+            data = resp.json()
+            if data.get('status') == 1:
+                product = data.get('product', {})
+                product_name = product.get('product_name') or product.get('product_name_en') or ''
+                found_external = True
+                suggestions.append({
+                    'product_name': product_name or 'Unnamed product',
+                    'brand': product.get('brands', '—'),
+                    'quantity': product.get('quantity', '—'),
+                })
+    except requests.RequestException:
+        pass
+
+    existing_item = Item.objects.filter(barcode_value=code).first()
+
+    context = {
+        'barcode_value': code,
+        'barcode_image_data_uri': _render_barcode_data_uri(code),
+        'product_name': product_name,
+        'found_external': found_external,
+        'suggestions': suggestions,
+        'existing_item': existing_item,
+    }
+    return render(request, 'inventory/external_lookup.html', context)
 
 
 def ai_insights_list(request):
