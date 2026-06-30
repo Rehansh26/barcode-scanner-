@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}AI Chat - Barcode Inventory{% endblock %}
+{% block content %}
+<div class="eyebrow">RAG · Bag-of-Words Retrieval · Ollama</div>
+<h1>Ask About Your Inventory</h1>
+<p class="kg-hint">Each question is matched against your real items with a bag-of-words / TF-IDF retriever first; only the top matches are sent to Ollama, so answers are grounded in your actual data instead of guesses. Expand "Retrieved context" on any answer to see exactly what was retrieved.</p>
+
+<div class="chat-card">
+  <div id="chat-thread">
+    {% for msg in chat_messages %}
+    <div class="chat-turn">
+      <div class="chat-bubble chat-question">{{ msg.question }}</div>
+      <div class="chat-bubble chat-answer">
+        <div class="chat-answer-text">{{ msg.answer|linebreaksbr }}</div>
+        <details class="chat-context">
+          <summary>Retrieved context</summary>
+          <pre>{{ msg.context_used }}</pre>
+        </details>
+      </div>
+    </div>
+    {% empty %}
+    <div class="empty-state">No questions asked yet. Try "what's low on stock?" or "what do we have in the warehouse?"</div>
+    {% endfor %}
+  </div>
+
+  <form id="chat-form" class="chat-input-row">
+    <input type="text" id="chat-question" name="question" placeholder="Ask about stock, locations, categories…" autocomplete="off" required>
+    <button type="submit" id="chat-submit">Ask</button>
+  </form>
+  <div id="chat-status" style="display: none;">
+    <span class="spinner"></span>
+    Retrieving relevant items and asking Ollama…
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var chatForm = document.getElementById('chat-form');
+var chatStatus = document.getElementById('chat-status');
+var chatSubmit = document.getElementById('chat-submit');
+var chatThread = document.getElementById('chat-thread');
+var chatInput = document.getElementById('chat-question');
+
+chatForm.addEventListener('submit', function (event) {
+  event.preventDefault();
+  var question = chatInput.value.trim();
+  if (!question) return;
+
+  chatSubmit.disabled = true;
+  chatStatus.style.display = 'block';
+
+  var formData = new FormData();
+  formData.append('question', question);
+
+  fetch('{% url "inventory:trigger_chat_message" %}', {
+    method: 'POST',
+    headers: { 'X-CSRFToken': getCsrfToken() },
+    body: formData,
+  })
+    .then(function (response) { return response.json(); })
+    .then(function (data) {
+      if (data.error) {
+        chatStatus.style.display = 'none';
+        chatSubmit.disabled = false;
+        alert(data.error);
+        return;
+      }
+      pollChat(data.task_id, question);
+    });
+});
+
+function pollChat(taskId, question) {
+  var url = '/ai-chat/status/' + taskId + '/';
+  var interval = setInterval(function () {
+    fetch(url)
+      .then(function (response) { return response.json(); })
+      .then(function (data) {
+        if (data.ready && data.answer !== undefined) {
+          clearInterval(interval);
+          chatStatus.style.display = 'none';
+          chatSubmit.disabled = false;
+          chatInput.value = '';
+
+          var turn = document.createElement('div');
+          turn.className = 'chat-turn';
+
+          var questionBubble = document.createElement('div');
+          questionBubble.className = 'chat-bubble chat-question';
+          questionBubble.textContent = question;
+
+          var answerBubble = document.createElement('div');
+          answerBubble.className = 'chat-bubble chat-answer';
+
+          var answerText = document.createElement('div');
+          answerText.className = 'chat-answer-text';
+          answerText.textContent = data.answer;
+          answerBubble.appendChild(answerText);
+
+          var details = document.createElement('details');
+          details.className = 'chat-context';
+          var summary = document.createElement('summary');
+          summary.textContent = 'Retrieved context';
+          var pre = document.createElement('pre');
+          pre.textContent = data.context_used || '(none)';
+          details.appendChild(summary);
+          details.appendChild(pre);
+          answerBubble.appendChild(details);
+
+          turn.appendChild(questionBubble);
+          turn.appendChild(answerBubble);
+          chatThread.appendChild(turn);
+          chatThread.scrollTop = chatThread.scrollHeight;
+        }
+      });
+  }, 2000);
+}
+</script>
+{% endblock %}

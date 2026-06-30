@@ -1,0 +1,53 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="csrf-token" content="{{ csrf_token }}">
+<title>{% block title %}Barcode Inventory{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'inventory/css/style.css' %}">
+{% block extra_head %}{% endblock %}
+</head>
+<body>
+<header class="topbar">
+<div class="topbar-inner">
+<a class="brand" href="{% url 'inventory:dashboard' %}">
+<span class="brand-mark">||||</span>
+<span class="brand-text">MANIFEST</span>
+</a>
+<nav class="primary-nav">
+<a href="{% url 'inventory:dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">Dashboard</a>
+<a href="{% url 'inventory:generate_barcode' %}" class="{% if request.resolver_match.url_name == 'generate_barcode' %}active{% endif %}">Generate</a>
+<a href="{% url 'inventory:scan_page' %}" class="{% if request.resolver_match.url_name == 'scan_page' %}active{% endif %}">Scan</a>
+<a href="{% url 'inventory:knowledge_graph' %}" class="{% if request.resolver_match.url_name == 'knowledge_graph' %}active{% endif %}">Knowledge Graph</a>
+<a href="{% url 'inventory:ai_insights_list' %}" class="{% if request.resolver_match.url_name == 'ai_insights_list' %}active{% endif %}">AI Insights</a>
+<a href="{% url 'inventory:ai_chat_page' %}" class="{% if request.resolver_match.url_name == 'ai_chat_page' %}active{% endif %}">AI Chat</a>
+<a href="{% url 'inventory:export_csv' %}">Export CSV</a>
+</nav>
+</div>
+<div class="topbar-search-row">
+<form class="topbar-search" method="get" action="{% url 'inventory:search_results' %}">
+<input type="text" name="q" placeholder="Search items, categories, locations, stock status…" value="{{ request.GET.q }}">
+<button type="submit">Search</button>
+</form>
+</div>
+<div class="barcode-stripe"></div>
+</header>
+<main class="page">
+{% if messages %}
+<div class="messages">
+{% for message in messages %}
+<div class="message message-{{ message.tags }}">{{ message }}</div>
+{% endfor %}
+</div>
+{% endif %}
+{% block content %}{% endblock %}
+</main>
+<script src="{% static 'inventory/js/app.js' %}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

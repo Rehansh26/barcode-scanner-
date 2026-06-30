@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Scan - Barcode Inventory{% endblock %}
+{% block content %}
+<div class="eyebrow">Live Camera Scan</div>
+<h1>Scan Barcode</h1>
+
+<div class="scanner-wrap">
+  <div id="reader"></div>
+  <div class="scan-result" id="scan-result" style="display: none;">
+    <h3 id="scan-result-title"></h3>
+    <div id="scan-result-body"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+const scanResult = document.getElementById('scan-result');
+const scanResultTitle = document.getElementById('scan-result-title');
+const scanResultBody = document.getElementById('scan-result-body');
+let lastScanned = '';
+let lastScanTime = 0;
+
+function onScanSuccess(decodedText) {
+  const now = Date.now();
+  if (decodedText === lastScanned && now - lastScanTime < 4000) {
+    return;
+  }
+  lastScanned = decodedText;
+  lastScanTime = now;
+  lookupBarcode(decodedText);
+}
+
+function lookupBarcode(value) {
+  const formData = new FormData();
+  formData.append('barcode_value', value);
+
+  fetch('{% url "inventory:scan_lookup" %}', {
+    method: 'POST',
+    headers: { 'X-CSRFToken': getCsrfToken() },
+    body: formData,
+  })
+    .then(response => response.json())
+    .then(data => {
+      scanResult.style.display = 'block';
+      if (data.found) {
+        scanResult.classList.remove('not-found');
+        scanResultTitle.textContent = data.item.item_name;
+        scanResultBody.innerHTML =
+          '<p class="mono">' + data.item.barcode_value + '</p>' +
+          '<p>Status: <span class="badge badge-' + data.item.status_css + '">' + data.item.status + '</span></p>' +
+          '<p>Quantity: ' + data.item.quantity + '</p>' +
+          '<p>Category: ' + (data.item.category || '—') + '</p>' +
+          '<p>Location: ' + (data.item.location || '—') + '</p>' +
+          '<a class="btn" href="' + data.item.detail_url + '">View Item</a>';
+      } else {
+        scanResult.classList.add('not-found');
+        scanResultTitle.textContent = 'No Match Found';
+        scanResultBody.innerHTML = '<p class="mono">' + value + '</p><p>This barcode is not in the database.</p>';
+      }
+    });
+}
+
+const html5QrCode = new Html5Qrcode('reader');
+const config = { fps: 10, qrbox: 250 };
+
+Html5Qrcode.getCameras().then(cameras => {
+  if (cameras && cameras.length) {
+    const cameraId = cameras[cameras.length - 1].id;
+    html5QrCode.start(cameraId, config, onScanSuccess);
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Barcode Inventory{% endblock %}
+{% block content %}
+<div class="eyebrow">Operations Overview</div>
+<h1>Inventory Dashboard</h1>
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-value">{{ total_items }}</div>
+    <div class="stat-label">Total Items</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ low_stock_count }}</div>
+    <div class="stat-label">Low Stock</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ out_of_stock_count }}</div>
+    <div class="stat-label">Out of Stock</div>
+  </div>
+</div>
+
+<form class="filter-bar" method="get">
+  <div class="field">
+    <label for="q">Search</label>
+    <input type="text" id="q" name="q" value="{{ query }}" placeholder="Name or barcode">
+  </div>
+  <div class="field">
+    <label for="category">Category</label>
+    <select id="category" name="category">
+      <option value="">All</option>
+      {% for c in categories %}
+      <option value="{{ c.id }}" {% if selected_category == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="location">Location</label>
+    <select id="location" name="location">
+      <option value="">All</option>
+      {% for l in locations %}
+      <option value="{{ l.id }}" {% if selected_location == l.id|stringformat:"s" %}selected{% endif %}>{{ l.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label for="status">Status</label>
+    <select id="status" name="status">
+      <option value="">All</option>
+      {% for code, label in status_choices %}
+      <option value="{{ code }}" {% if selected_status == code %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit">Apply Filters</button>
+</form>
+
+<div class="layout-split">
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Tracked Items</h2>
+      <a href="{% url 'inventory:generate_barcode' %}" class="btn">+ New Item</a>
+    </div>
+    <form action="{% url 'inventory:print_labels_bulk' %}" method="post" target="_blank">
+      {% csrf_token %}
+      <div style="margin-bottom: 8px;">
+        <button type="submit" class="btn btn-small">Print Selected Labels</button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th><input type="checkbox" onclick="document.querySelectorAll('.item-select').forEach(cb => cb.checked = this.checked)"></th>
+            <th>Item</th>
+            <th>Barcode</th>
+            <th>Category</th>
+            <th>Location</th>
+            <th>Status</th>
+            <th>Qty</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <td><input type="checkbox" class="item-select" name="ids" value="{{ item.id }}"></td>
+            <td><a href="{% url 'inventory:item_detail' item.id %}">{{ item.item_name }}</a></td>
+            <td class="mono">{{ item.barcode_value }}</td>
+            <td>{{ item.category.name|default:"—" }}</td>
+            <td>{{ item.location.name|default:"—" }}</td>
+            <td><span class="badge badge-{{ item.status_css }}">{{ item.get_status_display }}</span></td>
+            <td>{{ item.quantity }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="empty-state">No items match these filters yet.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </form>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Recent Scans</h2>
+    </div>
+    {% for log in recent_scans %}
+    <div class="scan-log-item">
+      <span class="mono">{{ log.barcode_value }}</span>
+      <span>{% if log.matched %}{{ log.item.item_name }}{% else %}No match{% endif %}</span>
+    </div>
+    {% empty %}
+    <div class="empty-state">No scans recorded yet.</div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="layout-split" style="margin-top: 24px;">
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Categories</h2>
+    </div>
+    <div class="chip-list">
+      {% for c in categories %}
+      <div class="chip">
+        <span>{{ c.name }}</span>
+        <form method="post" action="{% url 'inventory:category_delete' c.id %}" onsubmit="return confirm('Delete category &quot;{{ c.name|escapejs }}&quot;? Its items will keep their other fields but lose this category.');">
+          {% csrf_token %}
+          <button type="submit" class="chip-delete" title="Delete category">×</button>
+        </form>
+      </div>
+      {% empty %}
+      <div class="empty-state">No categories yet.</div>
+      {% endfor %}
+    </div>
+    <form method="post" action="{% url 'inventory:category_create' %}" class="chip-add-form">
+      {% csrf_token %}
+      <input type="text" name="name" placeholder="New category name" required>
+      <button type="submit">Add</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Locations</h2>
+    </div>
+    <div class="chip-list">
+      {% for l in locations %}
+      <div class="chip">
+        <span>{{ l.name }}</span>
+        <form method="post" action="{% url 'inventory:location_delete' l.id %}" onsubmit="return confirm('Delete location &quot;{{ l.name|escapejs }}&quot;? Its items will keep their other fields but lose this location.');">
+          {% csrf_token %}
+          <button type="submit" class="chip-delete" title="Delete location">×</button>
+        </form>
+      </div>
+      {% empty %}
+      <div class="empty-state">No locations yet.</div>
+      {% endfor %}
+    </div>
+    <form method="post" action="{% url 'inventory:location_create' %}" class="chip-add-form">
+      {% csrf_token %}
+      <input type="text" name="name" placeholder="New location name" required>
+      <button type="submit">Add</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

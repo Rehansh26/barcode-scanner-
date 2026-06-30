@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Knowledge Graph - Barcode Inventory{% endblock %}
+{% block content %}
+<div class="eyebrow">Relationships</div>
+<h1>Knowledge Graph</h1>
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-value">{{ item_count }}</div>
+    <div class="stat-label">Items</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ category_count }}</div>
+    <div class="stat-label">Categories</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ location_count }}</div>
+    <div class="stat-label">Locations</div>
+  </div>
+</div>
+
+<div class="kg-tabs">
+  <button type="button" class="kg-tab active" data-target="kg-graph-view">Graph</button>
+  <button type="button" class="kg-tab" data-target="kg-list-view">List</button>
+</div>
+
+<div id="kg-graph-view" class="kg-panel">
+  <div class="kg-legend">
+    <span><i class="kg-dot" style="background: var(--amber);"></i> Category</span>
+    <span><i class="kg-dot" style="background: var(--green);"></i> Location</span>
+    <span><i class="kg-dot" style="background: var(--ink-muted);"></i> Item</span>
+  </div>
+  <div id="kg-graph" data-url="{% url 'inventory:knowledge_graph_data' %}"></div>
+  <p class="kg-hint">Drag any node to rearrange the layout. Click an item to open it, or click a category / location to filter the dashboard.</p>
+</div>
+
+<div id="kg-list-view" class="kg-panel" style="display: none;">
+  <div class="panel">
+    <table>
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Location</th>
+          <th>Status</th>
+          <th>Qty</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% regroup items by category as category_groups %}
+        {% for group in category_groups %}
+        <tr class="kg-group-row">
+          <td colspan="4">{{ group.grouper.name|default:"Uncategorized" }} · {{ group.list|length }} item{{ group.list|length|pluralize }}</td>
+        </tr>
+        {% for item in group.list %}
+        <tr>
+          <td><a href="{% url 'inventory:item_detail' item.id %}">{{ item.item_name }}</a></td>
+          <td>{{ item.location.name|default:"—" }}</td>
+          <td><span class="badge badge-{{ item.status_css }}">{{ item.get_status_display }}</span></td>
+          <td>{{ item.quantity }}</td>
+        </tr>
+        {% endfor %}
+        {% empty %}
+        <tr>
+          <td colspan="4" class="empty-state">No items yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'inventory/js/graph.js' %}"></script>
+<script>
+document.querySelectorAll('.kg-tab').forEach(function (tab) {
+  tab.addEventListener('click', function () {
+    document.querySelectorAll('.kg-tab').forEach(function (t) { t.classList.remove('active'); });
+    document.querySelectorAll('.kg-panel').forEach(function (p) { p.style.display = 'none'; });
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.target).style.display = 'block';
+  });
+});
+</script>
+{% endblock %}

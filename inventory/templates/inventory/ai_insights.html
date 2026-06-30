@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}AI Insights - Barcode Inventory{% endblock %}
+{% block content %}
+<div class="eyebrow">Ollama Powered</div>
+<h1>AI Insights</h1>
+
+<div class="form-card" style="max-width: 720px;">
+  <form id="insight-form">
+    <div class="form-grid">
+      <div class="field">
+        <label for="category">Category Scope</label>
+        <select id="category" name="category">
+          <option value="">All Categories</option>
+          {% for c in categories %}
+          <option value="{{ c.id }}">{{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field">
+        <label for="location">Location Scope</label>
+        <select id="location" name="location">
+          <option value="">All Locations</option>
+          {% for l in locations %}
+          <option value="{{ l.id }}">{{ l.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div style="margin-top: 20px;">
+      <button type="submit" id="insight-submit">Generate Insight</button>
+    </div>
+  </form>
+  <div id="insight-status" style="margin-top: 16px; display: none;">
+    <span class="spinner"></span>
+    Asking Ollama to review this batch...
+  </div>
+</div>
+
+<div style="margin-top: 32px;">
+  <h2>Past Insights</h2>
+  <div id="insight-list">
+    {% for insight in insights %}
+    <div class="insight-card">
+      <div class="insight-meta">{{ insight.created_at }} · {{ insight.model_used }} · {{ insight.category.name|default:"All Categories" }} · {{ insight.location.name|default:"All Locations" }}</div>
+      <div class="insight-content">{{ insight.content }}</div>
+    </div>
+    {% empty %}
+    <div class="empty-state">No AI insights generated yet.</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const insightForm = document.getElementById('insight-form');
+const insightStatus = document.getElementById('insight-status');
+const insightSubmit = document.getElementById('insight-submit');
+const insightList = document.getElementById('insight-list');
+
+insightForm.addEventListener('submit', function (event) {
+  event.preventDefault();
+  insightSubmit.disabled = true;
+  insightStatus.style.display = 'block';
+
+  const formData = new FormData(insightForm);
+
+  fetch('{% url "inventory:trigger_ai_insight" %}', {
+    method: 'POST',
+    headers: { 'X-CSRFToken': getCsrfToken() },
+    body: formData,
+  })
+    .then(response => response.json())
+    .then(data => pollInsight(data.task_id));
+});
+
+function pollInsight(taskId) {
+  const url = '/ai-insights/status/' + taskId + '/';
+  const interval = setInterval(function () {
+    fetch(url)
+      .then(response => response.json())
+      .then(data => {
+        if (data.ready && data.title) {
+          clearInterval(interval);
+          insightStatus.style.display = 'none';
+          insightSubmit.disabled = false;
+          const card = document.createElement('div');
+          card.className = 'insight-card';
+          card.innerHTML =
+            '<div class="insight-meta">' + data.created_at + '</div>' +
+            '<div class="insight-content"></div>';
+          card.querySelector('.insight-content').textContent = data.content;
+          insightList.prepend(card);
+        }
+      });
+  }, 2000);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Print Labels</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #f4f4f4;
+      color: #111;
+    }
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .toolbar button {
+      padding: 8px 16px;
+      font-size: 14px;
+      border: 1px solid #333;
+      background: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .toolbar button:hover { background: #eee; }
+
+    .label-sheet {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+    .label {
+      width: 280px;
+      border: 1px solid #999;
+      border-radius: 6px;
+      background: #fff;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    .label img {
+      max-width: 180px;
+      max-height: 180px;
+      image-rendering: pixelated;
+      margin-bottom: 8px;
+    }
+    .label .name {
+      font-weight: 600;
+      font-size: 15px;
+      margin: 4px 0 2px;
+      word-break: break-word;
+    }
+    .label .barcode-value {
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .label .meta {
+      font-size: 11px;
+      color: #444;
+      line-height: 1.4;
+    }
+    .no-image {
+      width: 180px;
+      height: 180px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px dashed #aaa;
+      color: #888;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .toolbar { display: none; }
+      .label-sheet { gap: 10px; }
+      .label { border: 1px solid #ccc; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <span>{{ items|length }} label{{ items|length|pluralize }} ready to print</span>
+    <button onclick="window.print()">Print</button>
+  </div>
+
+  <div class="label-sheet">
+    {% for item in items %}
+    <div class="label">
+      {% if item.barcode_image %}
+      <img src="{{ item.barcode_image.url }}" alt="Code for {{ item.item_name }}">
+      {% else %}
+      <div class="no-image">No barcode image</div>
+      {% endif %}
+      <div class="name">{{ item.item_name }}</div>
+      <div class="barcode-value">{{ item.barcode_value }}</div>
+      <div class="meta">
+        {% if item.category %}{{ item.category.name }}{% else %}No category{% endif %}
+        &middot;
+        {% if item.location %}{{ item.location.name }}{% else %}No location{% endif %}
+        <br>
+        Qty: {{ item.quantity }} &middot; {{ item.get_status_display }}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if auto_print %}
+  <script>
+    window.addEventListener('load', function () {
+      // small delay so barcode images have time to render before the print dialog opens
+      setTimeout(function () { window.print(); }, 300);
+    });
+  </script>
+  {% endif %}
+</body>
+</html>

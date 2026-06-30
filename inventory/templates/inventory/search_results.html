@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Search - Barcode Inventory{% endblock %}
+{% block content %}
+<div class="eyebrow">Bag-of-Words Search</div>
+<h1>Search{% if query %} results for "{{ query }}"{% endif %}</h1>
+
+<form class="filter-bar" method="get" action="{% url 'inventory:search_results' %}">
+  <div class="field">
+    <label for="q">Query</label>
+    <input type="text" id="q" name="q" value="{{ query }}" placeholder="item, category, location, or stock status">
+  </div>
+  <button type="submit">Search</button>
+</form>
+
+{% if query %}
+<p class="kg-hint">{{ total }} result{{ total|pluralize }} ranked by TF-IDF cosine similarity across items, categories, and locations.</p>
+
+{% if grouped.item %}
+<div class="panel" style="margin-bottom: 24px;">
+  <div class="panel-header"><h2>Items</h2></div>
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Category</th><th>Location</th><th>Status</th><th>Qty</th><th>Score</th></tr>
+    </thead>
+    <tbody>
+      {% for r in grouped.item %}
+      <tr>
+        <td><a href="{% url 'inventory:item_detail' r.doc.object_id %}">{{ r.doc.label }}</a></td>
+        <td>{{ r.doc.meta.category|default:"—" }}</td>
+        <td>{{ r.doc.meta.location|default:"—" }}</td>
+        <td>{{ r.doc.meta.status_display }}</td>
+        <td>{{ r.doc.meta.quantity }}</td>
+        <td class="mono">{{ r.score }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% if grouped.category %}
+<div class="panel" style="margin-bottom: 24px;">
+  <div class="panel-header"><h2>Categories</h2></div>
+  <table>
+    <thead><tr><th>Name</th><th>Items</th><th>Score</th></tr></thead>
+    <tbody>
+      {% for r in grouped.category %}
+      <tr>
+        <td><a href="{% url 'inventory:dashboard' %}?category={{ r.doc.object_id }}">{{ r.doc.label }}</a></td>
+        <td>{{ r.doc.meta.item_count }}</td>
+        <td class="mono">{{ r.score }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% if grouped.location %}
+<div class="panel">
+  <div class="panel-header"><h2>Locations</h2></div>
+  <table>
+    <thead><tr><th>Name</th><th>Items</th><th>Score</th></tr></thead>
+    <tbody>
+      {% for r in grouped.location %}
+      <tr>
+        <td><a href="{% url 'inventory:dashboard' %}?location={{ r.doc.object_id }}">{{ r.doc.label }}</a></td>
+        <td>{{ r.doc.meta.item_count }}</td>
+        <td class="mono">{{ r.score }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% if not total %}
+<div class="empty-state">No matches found for "{{ query }}". Try a different term, or a stock status like "low stock" or "out of stock".</div>
+{% endif %}
+{% endif %}
+{% endblock %}

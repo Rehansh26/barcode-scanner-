@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ item.item_name }} - Barcode Inventory{% endblock %}
+{% block content %}
+<div class="eyebrow">Item Record</div>
+<h1>{{ item.item_name }}</h1>
+
+<div class="layout-split">
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Details</h2>
+      <span class="badge badge-{{ item.status_css }}">{{ item.get_status_display }}</span>
+    </div>
+    <table>
+      <tbody>
+        <tr><th>Barcode Value</th><td class="mono">{{ item.barcode_value }}</td></tr>
+        <tr><th>Barcode Type</th><td>{{ item.get_barcode_type_display }}</td></tr>
+        <tr><th>Category</th><td>{{ item.category.name|default:"—" }}</td></tr>
+        <tr><th>Location</th><td>{{ item.location.name|default:"—" }}</td></tr>
+        <tr><th>Quantity</th><td>{{ item.quantity }}</td></tr>
+        <tr><th>Description</th><td>{{ item.description|default:"—" }}</td></tr>
+        <tr><th>Created</th><td class="mono">{{ item.created_at }}</td></tr>
+        <tr><th>Updated</th><td class="mono">{{ item.updated_at }}</td></tr>
+      </tbody>
+    </table>
+    <div class="panel-header">
+      <h2>Scan History</h2>
+    </div>
+    {% for log in scan_logs %}
+    <div class="scan-log-item">
+      <span class="mono">{{ log.scanned_at }}</span>
+      <span>{% if log.matched %}Matched{% else %}Unmatched{% endif %}</span>
+    </div>
+    {% empty %}
+    <div class="empty-state">No scans logged for this item yet.</div>
+    {% endfor %}
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Barcode</h2>
+      <a href="{% url 'inventory:print_label' item.pk %}" target="_blank" class="btn btn-small">Print Label</a>
+    </div>
+    <div class="barcode-preview" style="padding: 20px;">
+      {% if item.barcode_image %}
+      <img src="{{ item.barcode_image.url }}" alt="Barcode for {{ item.item_name }}">
+      {% else %}
+      <p class="empty-state">Barcode image is still being generated.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
