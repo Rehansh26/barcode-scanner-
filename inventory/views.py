@@ -86,7 +86,8 @@ def generate_barcode(request):
             return JsonResponse({'task_id': task.id, 'item_id': item.id})
         return JsonResponse({'errors': form.errors}, status=400)
 
-    form = ItemForm()
+    # Prefill barcode_value if arriving from the scan page with an unmatched code
+    form = ItemForm(initial={'barcode_value': request.GET.get('barcode_value', '')})
     context = {
         'form': form,
         'categories': Category.objects.all(),

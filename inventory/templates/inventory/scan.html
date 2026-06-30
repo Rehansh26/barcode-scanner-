@@ -1,75 +1,167 @@
 {% extends "base.html" %}
-{% block title %}Scan - Barcode Inventory{% endblock %}
 {% block content %}
-<div class="eyebrow">Live Camera Scan</div>
-<h1>Scan Barcode</h1>
+<div class="scan-page">
+  <h1>Scan Barcode / QR Code</h1>
+  <p class="scan-hint">Use your camera, or upload a photo of the code. Works with UPC/EAN, Code128, QR, and most other common 1D/2D formats.</p>
 
-<div class="scanner-wrap">
-  <div id="reader"></div>
-  <div class="scan-result" id="scan-result" style="display: none;">
-    <h3 id="scan-result-title"></h3>
-    <div id="scan-result-body"></div>
+  <div class="scan-tabs">
+    <button type="button" id="tab-camera" class="scan-tab active">Camera</button>
+    <button type="button" id="tab-upload" class="scan-tab">Upload Image</button>
+  </div>
+
+  <div id="panel-camera" class="scan-panel">
+    <video id="scan-video" style="width:100%; max-width:480px; border-radius:8px; background:#000;"></video>
+    <div id="camera-status" class="scan-status">Starting camera…</div>
+  </div>
+
+  <div id="panel-upload" class="scan-panel" style="display:none;">
+    <input type="file" id="scan-file-input" accept="image/*">
+    <div id="upload-preview"></div>
+    <div id="upload-status" class="scan-status"></div>
+  </div>
+
+  <div id="scan-result" class="scan-result" style="display:none;">
+    <h3>Scanned code:</h3>
+    <code id="scan-result-value"></code>
+    <div class="scan-result-actions">
+      <button type="button" id="scan-result-go" class="btn-small">Look up / Add item</button>
+      <button type="button" id="scan-result-again" class="btn-small">Scan another</button>
+    </div>
   </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
 <script>
-const scanResult = document.getElementById('scan-result');
-const scanResultTitle = document.getElementById('scan-result-title');
-const scanResultBody = document.getElementById('scan-result-body');
-let lastScanned = '';
-let lastScanTime = 0;
+(function () {
+  const codeReader = new ZXing.BrowserMultiFormatReader();
+  let activeControls = null;
 
-function onScanSuccess(decodedText) {
-  const now = Date.now();
-  if (decodedText === lastScanned && now - lastScanTime < 4000) {
-    return;
+  const tabCamera = document.getElementById('tab-camera');
+  const tabUpload = document.getElementById('tab-upload');
+  const panelCamera = document.getElementById('panel-camera');
+  const panelUpload = document.getElementById('panel-upload');
+  const cameraStatus = document.getElementById('camera-status');
+  const uploadStatus = document.getElementById('upload-status');
+  const resultBox = document.getElementById('scan-result');
+  const resultValue = document.getElementById('scan-result-value');
+  const goBtn = document.getElementById('scan-result-go');
+  const againBtn = document.getElementById('scan-result-again');
+  const fileInput = document.getElementById('scan-file-input');
+
+  function showResult(text) {
+    resultValue.textContent = text;
+    resultBox.style.display = 'block';
+    stopCamera();
   }
-  lastScanned = decodedText;
-  lastScanTime = now;
-  lookupBarcode(decodedText);
-}
 
-function lookupBarcode(value) {
-  const formData = new FormData();
-  formData.append('barcode_value', value);
+  function stopCamera() {
+    if (activeControls) {
+      activeControls.stop();
+      activeControls = null;
+    }
+  }
 
-  fetch('{% url "inventory:scan_lookup" %}', {
-    method: 'POST',
-    headers: { 'X-CSRFToken': getCsrfToken() },
-    body: formData,
-  })
-    .then(response => response.json())
-    .then(data => {
-      scanResult.style.display = 'block';
-      if (data.found) {
-        scanResult.classList.remove('not-found');
-        scanResultTitle.textContent = data.item.item_name;
-        scanResultBody.innerHTML =
-          '<p class="mono">' + data.item.barcode_value + '</p>' +
-          '<p>Status: <span class="badge badge-' + data.item.status_css + '">' + data.item.status + '</span></p>' +
-          '<p>Quantity: ' + data.item.quantity + '</p>' +
-          '<p>Category: ' + (data.item.category || '—') + '</p>' +
-          '<p>Location: ' + (data.item.location || '—') + '</p>' +
-          '<a class="btn" href="' + data.item.detail_url + '">View Item</a>';
-      } else {
-        scanResult.classList.add('not-found');
-        scanResultTitle.textContent = 'No Match Found';
-        scanResultBody.innerHTML = '<p class="mono">' + value + '</p><p>This barcode is not in the database.</p>';
+  function startCamera() {
+    cameraStatus.textContent = 'Starting camera…';
+    codeReader.decodeFromVideoDevice(null, 'scan-video', (result, err, controls) => {
+      activeControls = controls;
+      if (result) {
+        showResult(result.getText());
       }
+    }).then(() => {
+      cameraStatus.textContent = 'Point the camera at a barcode or QR code.';
+    }).catch((err) => {
+      cameraStatus.textContent = 'Camera unavailable: ' + err.message + '. Try the Upload Image tab instead.';
     });
+  }
+
+  tabCamera.addEventListener('click', () => {
+    tabCamera.classList.add('active');
+    tabUpload.classList.remove('active');
+    panelCamera.style.display = 'block';
+    panelUpload.style.display = 'none';
+    resultBox.style.display = 'none';
+    startCamera();
+  });
+
+  tabUpload.addEventListener('click', () => {
+    tabUpload.classList.add('active');
+    tabCamera.classList.remove('active');
+    panelUpload.style.display = 'block';
+    panelCamera.style.display = 'none';
+    resultBox.style.display = 'none';
+    stopCamera();
+  });
+
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    uploadStatus.textContent = 'Decoding…';
+    const reader = new FileReader();
+    reader.onload = function (evt) {
+      const img = new Image();
+      img.onload = function () {
+        document.getElementById('upload-preview').innerHTML = '';
+        const previewImg = img.cloneNode();
+        previewImg.style.maxWidth = '320px';
+        document.getElementById('upload-preview').appendChild(previewImg);
+        codeReader.decodeFromImageElement(img).then((result) => {
+          uploadStatus.textContent = '';
+          showResult(result.getText());
+        }).catch(() => {
+          uploadStatus.textContent = 'No code found in that image. Try a clearer photo or crop tighter to the code.';
+        });
+      };
+      img.src = evt.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  function getCsrfToken() {
+    const match = document.cookie.match(/csrftoken=([^;]+)/);
+    return match ? match[1] : '';
 }
 
-const html5QrCode = new Html5Qrcode('reader');
-const config = { fps: 10, qrbox: 250 };
+goBtn.addEventListener('click', () => {
+    const code = resultValue.textContent;
+    goBtn.disabled = true;
+    goBtn.textContent = 'Looking up…';
 
-Html5Qrcode.getCameras().then(cameras => {
-  if (cameras && cameras.length) {
-    const cameraId = cameras[cameras.length - 1].id;
-    html5QrCode.start(cameraId, config, onScanSuccess);
-  }
+    fetch("{% url 'inventory:scan_lookup' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCsrfToken(),
+        },
+        body: 'barcode_value=' + encodeURIComponent(code),
+    })
+        .then((res) => res.json())
+        .then((data) => {
+            if (data.found) {
+                window.location.href = data.item.detail_url;
+            } else {
+                window.location.href = "{% url 'inventory:generate_barcode' %}?barcode_value=" + encodeURIComponent(code);
+            }
+        })
+        .catch(() => {
+            goBtn.disabled = false;
+            goBtn.textContent = 'Look up / Add item';
+            alert('Lookup failed — check the server console for errors.');
+        });
 });
+  againBtn.addEventListener('click', () => {
+    resultBox.style.display = 'none';
+    fileInput.value = '';
+    document.getElementById('upload-preview').innerHTML = '';
+    if (tabCamera.classList.contains('active')) {
+      startCamera();
+    }
+  });
+
+  // Start on camera tab by default
+  startCamera();
+
+  window.addEventListener('beforeunload', stopCamera);
+})();
 </script>
 {% endblock %}
