@@ -26,4 +26,5 @@ urlpatterns = [
     path('search/', views.search_results, name='search_results'),
     path('items/<int:pk>/print/', views.print_label, name='print_label'),
     path('items/print-bulk/', views.print_labels_bulk, name='print_labels_bulk'),
+    path('items/<int:pk>/quality-check/', views.quality_check_create, name='quality_check_create'),
 ]

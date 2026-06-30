@@ -685,3 +685,106 @@ td.mono, .mono {
   font-size: 13px;
   color: var(--ink-muted);
 }
+
+/* Quality Notes */
+.quality-check-form {
+  padding: 20px;
+  border-bottom: 1px solid var(--hairline);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.qc-status-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.qc-status-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.qc-checklist {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+
+.qc-checklist label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.quality-check-form textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+.qc-form-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.qc-form-footer input[type="text"] {
+  flex: 1;
+}
+
+.qc-history {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.qc-entry {
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  padding: 12px 14px;
+}
+
+.qc-entry-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.qc-checked-by {
+  color: var(--ink-muted);
+}
+
+.qc-criteria {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.qc-pill {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--hairline);
+}
+
+.qc-pill-ok {
+  background: rgba(80, 200, 120, 0.18);
+  color: #2f9e52;
+}
+
+.qc-notes {
+  font-size: 13px;
+  color: var(--ink-muted);
+  margin: 0;
+}

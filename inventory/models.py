@@ -72,6 +72,53 @@ class Item(models.Model):
         }
         return mapping.get(self.status, 'in-stock')
 
+    @property
+    def latest_quality_check(self):
+        return self.quality_checks.first()  # ordered by -created_at
+
+
+class QualityCheck(models.Model):
+    """A QA review entry for an item. Items can have multiple checks over time,
+    forming a quality history; the most recent one represents current QA status."""
+
+    STATUS_PASS = 'PASS'
+    STATUS_FAIL = 'FAIL'
+    STATUS_NEEDS_REVIEW = 'NEEDS_REVIEW'
+    STATUS_CHOICES = [
+        (STATUS_PASS, 'Pass'),
+        (STATUS_FAIL, 'Fail'),
+        (STATUS_NEEDS_REVIEW, 'Needs Review'),
+    ]
+
+    item = models.ForeignKey(Item, related_name='quality_checks', on_delete=models.CASCADE)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_NEEDS_REVIEW)
+
+    # Lightweight checklist — common QA criteria. Each defaults to unchecked/False
+    # so a reviewer explicitly marks what they verified.
+    packaging_ok = models.BooleanField(default=False)
+    physical_condition_ok = models.BooleanField(default=False)
+    functionality_ok = models.BooleanField(default=False)
+    labeling_ok = models.BooleanField(default=False)
+
+    notes = models.TextField(blank=True)
+    checked_by = models.CharField(max_length=120, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.item.item_name} — {self.get_status_display()} ({self.created_at:%Y-%m-%d})"
+
+    @property
+    def status_css(self):
+        mapping = {
+            self.STATUS_PASS: 'in-stock',
+            self.STATUS_FAIL: 'out-of-stock',
+            self.STATUS_NEEDS_REVIEW: 'low-stock',
+        }
+        return mapping.get(self.status, 'low-stock')
+
 
 class ScanLog(models.Model):
     item = models.ForeignKey(Item, related_name='scan_logs', on_delete=models.SET_NULL, null=True, blank=True)

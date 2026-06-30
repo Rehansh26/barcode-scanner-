@@ -7,14 +7,14 @@ from django.urls import reverse
 from django.db.models import Q
 from django.contrib import messages
 from celery.result import AsyncResult
-from .models import Item, Category, Location, ScanLog, AIInsight, ChatMessage
-from .forms import ItemForm
+from .models import Item, Category, Location, ScanLog, AIInsight, ChatMessage, QualityCheck
+from .forms import ItemForm, QualityCheckForm
 from .tasks import generate_barcode_task, log_scan_task, generate_ai_insight_task, generate_chat_response_task
 from . import bow
 
 
 def dashboard(request):
-    items = Item.objects.select_related('category', 'location').all()
+    items = Item.objects.select_related('category', 'location').prefetch_related('quality_checks').all()
     category_id = request.GET.get('category')
     location_id = request.GET.get('location')
     status = request.GET.get('status')
@@ -51,7 +51,28 @@ def dashboard(request):
 def item_detail(request, pk):
     item = get_object_or_404(Item.objects.select_related('category', 'location'), pk=pk)
     scan_logs = item.scan_logs.order_by('-scanned_at')[:20]
-    return render(request, 'inventory/item_detail.html', {'item': item, 'scan_logs': scan_logs})
+    quality_checks = item.quality_checks.all()
+    quality_form = QualityCheckForm()
+    return render(request, 'inventory/item_detail.html', {
+        'item': item,
+        'scan_logs': scan_logs,
+        'quality_checks': quality_checks,
+        'quality_form': quality_form,
+    })
+
+
+@require_POST
+def quality_check_create(request, pk):
+    item = get_object_or_404(Item, pk=pk)
+    form = QualityCheckForm(request.POST)
+    if form.is_valid():
+        check = form.save(commit=False)
+        check.item = item
+        check.save()
+        messages.success(request, f'Quality check logged: {check.get_status_display()}.')
+    else:
+        messages.error(request, 'Could not save quality check — please check the form.')
+    return redirect('inventory:item_detail', pk=item.pk)
 
 
 def generate_barcode(request):

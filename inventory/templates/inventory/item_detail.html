@@ -9,6 +9,11 @@
     <div class="panel-header">
       <h2>Details</h2>
       <span class="badge badge-{{ item.status_css }}">{{ item.get_status_display }}</span>
+      {% if item.latest_quality_check %}
+      <span class="badge badge-{{ item.latest_quality_check.status_css }}">QA: {{ item.latest_quality_check.get_status_display }}</span>
+      {% else %}
+      <span class="badge badge-low-stock">QA: Not Checked</span>
+      {% endif %}
     </div>
     <table>
       <tbody>
@@ -47,6 +52,58 @@
       <p class="empty-state">Barcode image is still being generated.</p>
       {% endif %}
     </div>
+  </div>
+</div>
+
+<div class="panel" style="margin-top: 24px;">
+  <div class="panel-header">
+    <h2>Quality Notes</h2>
+  </div>
+
+  <form method="post" action="{% url 'inventory:quality_check_create' item.pk %}" class="quality-check-form">
+    {% csrf_token %}
+    <div class="qc-status-row">
+      {% for value, label in quality_form.fields.status.choices %}
+      <label class="qc-status-option">
+        <input type="radio" name="status" value="{{ value }}" {% if forloop.first %}checked{% endif %}>
+        {{ label }}
+      </label>
+      {% endfor %}
+    </div>
+
+    <div class="qc-checklist">
+      <label><input type="checkbox" name="packaging_ok"> Packaging OK</label>
+      <label><input type="checkbox" name="physical_condition_ok"> Physical Condition OK</label>
+      <label><input type="checkbox" name="functionality_ok"> Functionality OK</label>
+      <label><input type="checkbox" name="labeling_ok"> Labeling OK</label>
+    </div>
+
+    <textarea name="notes" rows="2" placeholder="What did you check? Any defects or concerns?"></textarea>
+    <div class="qc-form-footer">
+      <input type="text" name="checked_by" placeholder="Your name (optional)">
+      <button type="submit" class="btn">Log Quality Check</button>
+    </div>
+  </form>
+
+  <div class="qc-history">
+    {% for check in quality_checks %}
+    <div class="qc-entry">
+      <div class="qc-entry-header">
+        <span class="badge badge-{{ check.status_css }}">{{ check.get_status_display }}</span>
+        <span class="mono">{{ check.created_at }}</span>
+        {% if check.checked_by %}<span class="qc-checked-by">by {{ check.checked_by }}</span>{% endif %}
+      </div>
+      <div class="qc-criteria">
+        {% if check.packaging_ok %}<span class="qc-pill qc-pill-ok">Packaging</span>{% endif %}
+        {% if check.physical_condition_ok %}<span class="qc-pill qc-pill-ok">Condition</span>{% endif %}
+        {% if check.functionality_ok %}<span class="qc-pill qc-pill-ok">Functionality</span>{% endif %}
+        {% if check.labeling_ok %}<span class="qc-pill qc-pill-ok">Labeling</span>{% endif %}
+      </div>
+      {% if check.notes %}<p class="qc-notes">{{ check.notes }}</p>{% endif %}
+    </div>
+    {% empty %}
+    <div class="empty-state">No quality checks logged yet for this item.</div>
+    {% endfor %}
   </div>
 </div>
 {% endblock %}

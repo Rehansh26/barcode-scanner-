@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Category, Location, Item, ScanLog, AIInsight, ChatMessage
+from .models import Category, Location, Item, ScanLog, AIInsight, ChatMessage, QualityCheck
 
 
 @admin.register(Category)
@@ -36,3 +36,10 @@ class AIInsightAdmin(admin.ModelAdmin):
 class ChatMessageAdmin(admin.ModelAdmin):
     list_display = ['question', 'created_at']
     search_fields = ['question', 'answer']
+
+
+@admin.register(QualityCheck)
+class QualityCheckAdmin(admin.ModelAdmin):
+    list_display = ['item', 'status', 'checked_by', 'created_at']
+    list_filter = ['status']
+    search_fields = ['item__item_name', 'notes', 'checked_by']

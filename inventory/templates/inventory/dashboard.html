@@ -74,6 +74,7 @@
             <th>Category</th>
             <th>Location</th>
             <th>Status</th>
+            <th>QA</th>
             <th>Qty</th>
           </tr>
         </thead>
@@ -86,11 +87,18 @@
             <td>{{ item.category.name|default:"—" }}</td>
             <td>{{ item.location.name|default:"—" }}</td>
             <td><span class="badge badge-{{ item.status_css }}">{{ item.get_status_display }}</span></td>
+            <td>
+              {% if item.latest_quality_check %}
+              <span class="badge badge-{{ item.latest_quality_check.status_css }}">{{ item.latest_quality_check.get_status_display }}</span>
+              {% else %}
+              <span class="badge badge-low-stock">Not Checked</span>
+              {% endif %}
+            </td>
             <td>{{ item.quantity }}</td>
           </tr>
           {% empty %}
           <tr>
-            <td colspan="7" class="empty-state">No items match these filters yet.</td>
+            <td colspan="8" class="empty-state">No items match these filters yet.</td>
           </tr>
           {% endfor %}
         </tbody>
